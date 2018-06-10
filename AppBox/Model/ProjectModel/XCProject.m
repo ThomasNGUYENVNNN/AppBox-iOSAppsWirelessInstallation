@@ -17,21 +17,15 @@
     }
 }
 
--(NSString *)buildMailURLStringForEmailId:(NSString *)mailId andMessage:(NSString *)message{
-    NSMutableString *mailString = [NSMutableString stringWithString:abMailerBaseURL];
-    [mailString appendFormat:@"?to=%@",mailId];
-    [mailString appendFormat:@"&app=%@",self.name];
-    [mailString appendFormat:@"&ver=%@",self.version];
-    [mailString appendFormat:@"&build=%@",self.build];
-    [mailString appendFormat:@"&link=%@",self.appShortShareableURL.stringValue];
-    [mailString appendFormat:@"&devmsg=%@",message];
-    return mailString;
-}
-
--(void)createManifestWithIPAURL:(NSURL *)ipaURL completion:(void(^)(NSURL *manifestURL))completion{
-    NSMutableDictionary *assetsDict = [[NSMutableDictionary alloc] init];
-    [assetsDict setValue:self.ipaFileDBShareableURL.absoluteString forKey:@"url"];
-    [assetsDict setValue:@"software-package" forKey:@"kind"];
+-(void)createManifestWithCompletion:(void(^)(NSURL *manifestURL))completion{
+    NSMutableDictionary *ipaAssetsDict = [[NSMutableDictionary alloc] init];
+    [ipaAssetsDict setValue:self.ipaFileDBShareableURL.absoluteString forKey:@"url"];
+    [ipaAssetsDict setValue:@"software-package" forKey:@"kind"];
+    
+    NSMutableDictionary *iconAssetsDict = [[NSMutableDictionary alloc] init];
+    [iconAssetsDict setValue:self.appIconSharableURL.absoluteString forKey:@"url"];
+    [iconAssetsDict setValue:@"display-image" forKey:@"kind"];
+    [iconAssetsDict setValue:@YES forKey:@"needs-shine"];
     
     //TODO: Upload ICONS
     NSMutableDictionary *iconDict = [[NSMutableDictionary alloc] init];
@@ -46,7 +40,7 @@
     [metadataDict setValue:self.version forKey:@"bundle-version"];
     
     NSMutableDictionary *mainItemDict = [[NSMutableDictionary alloc] init];
-    [mainItemDict setValue:[NSArray arrayWithObjects:assetsDict, nil] forKey:@"assets"];
+    [mainItemDict setValue:[NSArray arrayWithObjects:ipaAssetsDict, iconAssetsDict, nil] forKey:@"assets"];
     [mainItemDict setValue:metadataDict forKey:@"metadata"];
     
     NSMutableDictionary *manifestDict = [[NSMutableDictionary alloc] init];
@@ -234,14 +228,24 @@
     NSString *validUUID = [self validURLString:self.uuid];
     NSString *validBundleDirectory = [self validURLString:self.bundleDirectory.absoluteString];
     
-    NSString *toPath = [validBundleDirectory stringByAppendingPathComponent:[NSString stringWithFormat:@"%@-ver%@(%@)-%@",validName, validVersion, validBuild, validUUID]];
-    [self setDbDirectory:[NSURL URLWithString:toPath]];
+    //Build Dropbox Directory
+    NSString *folderName = [NSString stringWithFormat:@"%@-ver%@(%@)-%@",validName, validVersion, validBuild, validUUID];
+    NSString *toPath = [validBundleDirectory stringByAppendingPathComponent:folderName];
+    [self setDbDirectory: [NSURL URLWithString:toPath]];
     
-    NSString * dbIPAFullPathString = [NSString stringWithFormat:@"%@/%@.ipa", toPath, validName];
-    [self setDbIPAFullPath:[NSURL URLWithString:dbIPAFullPathString]];
+    //IPA file full Dropbox path
+    NSString *dbIPAFullPath = [NSString stringWithFormat:@"%@/%@.ipa", toPath, validName];
+    [self setDbIPAFullPath: [NSURL URLWithString:dbIPAFullPath]];
     
-    [self setDbManifestFullPath:[NSURL URLWithString:[NSString stringWithFormat:@"%@/manifest.plist",toPath]]];
+    //Manifest file full Dropbox path
+    NSString *manifestFullPath = [NSString stringWithFormat:@"%@/manifest.plist",toPath];
+    [self setDbManifestFullPath: [NSURL URLWithString:manifestFullPath]];
     
+    //AppIcon file full Dropbox path
+    NSString *appIconFullPath = [NSString stringWithFormat:@"%@/AppIcon.png",toPath];
+    [self setDbAppIConFullPath: [NSURL URLWithString:appIconFullPath]];
+    
+    //AppInfo file full Dropbox path
     if (self.isKeepSameLinkEnabled){
         [self setDbAppInfoJSONFullPath:[NSURL URLWithString:[NSString stringWithFormat:@"%@/%@",validBundleDirectory,abAppInfoFileName]]];
     } else {
